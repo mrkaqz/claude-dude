@@ -34,6 +34,7 @@ static BLEServer*         server = nullptr;
 static BLECharacteristic* txChar = nullptr;
 static BLECharacteristic* rxChar = nullptr;
 static volatile bool      connected = false;
+static volatile int       connectionCount = 0;   // supports two concurrent centrals: Desktop + daemon
 static volatile bool      secure = false;
 static volatile uint32_t  passkey = 0;
 static volatile uint16_t  mtu = 23;
@@ -56,16 +57,22 @@ class RxCallbacks : public BLECharacteristicCallbacks {
 
 class ServerCallbacks : public BLEServerCallbacks {
   void onConnect(BLEServer* s) override {
+    connectionCount++;
     connected = true;
-    Serial.println("[ble] connected");
+    Serial.printf("[ble] connected (n=%d)\n", connectionCount);
+    // Keep advertising so a second central (the usage daemon, alongside
+    // Claude Desktop) can also find and connect to us — CONFIG_BT_NIMBLE_
+    // MAX_CONNECTIONS is 3, plenty of headroom for our two. A peripheral
+    // stops advertising on its own once any one central connects, so this
+    // has to be requested again explicitly on every connect, not just
+    // after a disconnect.
+    BLEDevice::startAdvertising();
   }
   void onDisconnect(BLEServer* s) override {
-    connected = false;
-    secure = false;
-    passkey = 0;
-    mtu = 23;
-    Serial.println("[ble] disconnected");
-    // Restart advertising so the next client can find us.
+    if (connectionCount > 0) connectionCount--;
+    connected = (connectionCount > 0);
+    if (!connected) { secure = false; passkey = 0; mtu = 23; }
+    Serial.printf("[ble] disconnected (n=%d)\n", connectionCount);
     BLEDevice::startAdvertising();
   }
   void onMtuChanged(BLEServer*, ble_gap_conn_desc*, uint16_t newMtu) override {

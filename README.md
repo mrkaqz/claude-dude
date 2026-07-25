@@ -17,9 +17,11 @@ against Anthropic's public API behavior. See [NOTICE](NOTICE) for the full attri
 
 ## Status
 
-Under active development. Board bring-up verified on real hardware (ESP32-S3, 16MB flash,
-8MB octal PSRAM). Firmware and daemon are being built out — see `PLAN.md` in the repo history
-for the phased build plan.
+Under active development. Verified live on real hardware: board bring-up, BLE pairing with
+Claude Desktop, and the full screen state machine (ATTENTION/ACTIVE/IDLE/NO-DESKTOP,
+including the watchdog fallback). The usage daemon works, with one known limitation — see
+[daemon/README.md](daemon/README.md). Original pixel art (Phase 4) isn't done yet. See
+`PLAN.md` for the phased build plan.
 
 ## Hardware
 
@@ -46,7 +48,8 @@ pio device monitor -p COM16   # serial console
 (`~/.claude/.credentials.json` or the Claude Desktop equivalent — **read locally, never
 transmitted anywhere except to `api.anthropic.com`, and never committed**), polls the
 `/v1/messages` rate-limit headers every 60s, and pushes a `cmd:"usage"` line to the device
-over BLE. See [daemon/README.md](daemon/README.md) for setup (once written).
+over BLE. See [daemon/README.md](daemon/README.md) for setup — including a known limitation
+where it can't hold the BLE connection at the same time as Claude Desktop.
 
 ## License
 
