@@ -1,0 +1,19 @@
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Daemon local config / secrets
+daemon/config/
+daemon/*.local.*
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

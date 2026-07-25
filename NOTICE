@@ -1,0 +1,28 @@
+claude-dude is a derivative work based on:
+
+  claude-desktop-buddy
+  https://github.com/anthropics/claude-desktop-buddy
+  Copyright 2026 Anthropic, PBC. — MIT License
+
+The BLE bridge (`src/ble_bridge.*`), the Nordic UART wire protocol used to talk to the
+Claude Desktop "Hardware Buddy" developer-mode feature, the AnimatedGIF-based character
+rendering path, and the `tools/prep_character.py` art pipeline originate from that project
+and retain its MIT license and copyright notice (see LICENSE).
+
+Everything else in this repository — the T-Display-S3 board shim, the landscape UI, the
+screen state machine, the usage daemon, and the pixel art — is new code written for this
+project.
+
+---
+
+Inspiration, not code: this project's idle/usage screen is inspired by the *idea* of
+Clawdmeter (https://github.com/HermannBjorgvin/Clawdmeter) — a menu-bar app that shows
+Claude usage and quota reset countdowns. Clawdmeter ships with no LICENSE file, which makes
+it all-rights-reserved by default, so no source from that project was read, copied, or
+consulted while writing `daemon/`. The daemon's method for computing usage (polling
+`api.anthropic.com/v1/messages` and reading the `anthropic-ratelimit-unified-*` response
+headers) was derived independently from Anthropic's own API behavior, not from Clawdmeter's
+implementation.
+
+No artwork, pixel art, or "Clawd" character assets from Clawdmeter are used anywhere in this
+repository. The sprites in `art/` are original.
