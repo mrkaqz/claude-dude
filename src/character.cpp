@@ -2,7 +2,7 @@
 // LittleFS.h must come before TFT_eSPI.h: TFT_eSPI's ESP32-S3 processor
 // header #defines FS_NO_GLOBALS before its own internal FS.h include, and
 // since FS.h is include-guarded, that permanently suppresses the
-// `using fs::File;` alias for whichever header includes FS.h first.
+// `using fs::File;` alias for whichever header includes it first.
 #include <LittleFS.h>
 #include <TFT_eSPI.h>
 #include <AnimatedGIF.h>
@@ -42,20 +42,37 @@ static AnimatedGIF gif;
 static File        gifFile;
 static int         gifX = 0, gifY = 0, gifW = 0, gifH = 0;
 // Peek mode pins the GIF bottom to the info-panel top (y=70) so the pet
-// sits on the panel edge regardless of canvas height. Home mode centers
-// in the upper 140px. No padding assumed in the source art.
+// sits on the panel edge regardless of canvas height. No padding assumed
+// in the source art. Not used by the current landscape UI (no info-panel
+// screen to peek from) — kept intact in case a future screen wants it.
 static const int   PEEK_TOP = 70;
 static bool        peekMode = false;
-// Draw target — defaults to the sprite; characterRenderTo() retargets to
-// M5.Lcd for the landscape clock (both inherit TFT_eSPI).
+// Draw target — defaults to the sprite; characterRenderTo() can retarget
+// to any other TFT_eSPI-derived surface for a one-shot render.
 static TFT_eSPI*   _tgt = &spr;
+// Where non-peek ("home") mode centers the GIF — the pet column, set via
+// characterSetHomeArea(). Defaults to the full sprite center so this still
+// behaves sanely if a caller never sets it.
+static int homeCenterX = -1;
+static int homeCenterY = -1;
+void characterSetHomeArea(int centerX, int centerY) {
+  homeCenterX = centerX;
+  homeCenterY = centerY;
+}
 // Peek mode renders at half scale (2:1 nearest-neighbor in gifDrawCb) so
 // the whole pet fits the 70px window instead of cropping the top.
 static void gifPlace() {
   int outW = peekMode ? gifW / 2 : gifW;
   int outH = peekMode ? gifH / 2 : gifH;
-  gifX = (spr.width() - outW) / 2;
-  gifY = peekMode ? (PEEK_TOP - outH) / 2 : (140 - outH) / 2;
+  if (peekMode) {
+    gifX = (spr.width() - outW) / 2;
+    gifY = (PEEK_TOP - outH) / 2;
+    return;
+  }
+  int cx = (homeCenterX >= 0) ? homeCenterX : spr.width() / 2;
+  int cy = (homeCenterY >= 0) ? homeCenterY : spr.height() / 2;
+  gifX = cx - outW / 2;
+  gifY = cy - outH / 2;
 }
 static uint32_t    nextFrameAt = 0;
 static uint32_t    animPauseUntil = 0;
@@ -121,7 +138,13 @@ static void gifDrawCb(GIFDRAW* d) {
   if (peekMode) {
     if (srcY & 1) return;
     int y = gifY + (srcY >> 1);
-    if (y < 0 || y >= PEEK_TOP) return;
+    // Clip against the actual draw target's height, not the hardcoded
+    // PEEK_TOP constant — PEEK_TOP is portrait panel geometry (where the
+    // pet's peek window bottom always happened to equal the target's
+    // height); on a retargeted or differently-sized surface that
+    // assumption doesn't hold and rows below PEEK_TOP would be silently
+    // dropped.
+    if (y < 0 || y >= _tgt->height()) return;
     int x0 = gifX + (d->iX >> 1);
     int w  = d->iWidth >> 1;
     for (int i = 0; i < w; i++) put(x0 + i, y, src[i << 1]);

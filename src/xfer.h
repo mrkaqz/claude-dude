@@ -85,9 +85,44 @@ inline bool xferCommand(JsonDocument& doc) {
     return true;
   }
 
+  if (strcmp(cmd, "species") == 0) {
+    extern bool buddyMode, gifAvailable;
+    extern void buddySetSpeciesIdx(uint8_t);
+    uint8_t idx = doc["idx"] | 0xFF;
+    speciesIdxSave(idx);
+    buddyMode = !(gifAvailable && idx == 0xFF);
+    if (buddyMode) buddySetSpeciesIdx(idx);
+    _xAck("species", true);
+    return true;
+  }
+
   if (strcmp(cmd, "unpair") == 0) {
     bleClearBonds();
     _xAck("unpair", true);
+    return true;
+  }
+
+  if (strcmp(cmd, "persona") == 0) {
+    // Additive command, not part of upstream's wire protocol (see
+    // docs/PROTOCOL.md) — replaces the IMU shake/interaction triggers for
+    // dizzy/heart on a board with no IMU. "ms" is optional, default 2000.
+    static const char* const PERSONA_NAMES[] = {
+      "sleep", "idle", "busy", "attention", "celebrate", "dizzy", "heart"
+    };
+    extern void triggerOneShot(uint8_t state, uint32_t durMs);
+    const char* name = doc["name"];
+    uint32_t durMs = doc["ms"] | 2000;
+    bool matched = false;
+    if (name) {
+      for (uint8_t i = 0; i < 7; i++) {
+        if (strcmp(name, PERSONA_NAMES[i]) == 0) {
+          triggerOneShot(i, durMs);
+          matched = true;
+          break;
+        }
+      }
+    }
+    _xAck("persona", matched);
     return true;
   }
 
@@ -101,23 +136,26 @@ inline bool xferCommand(JsonDocument& doc) {
   if (strcmp(cmd, "status") == 0) {
     // Dump everything the info screens show. Manual printf rather than
     // ArduinoJson serialize — less heap churn, and the shape is fixed.
-    // No PMU on this board — battery is a bare ADC pin, no current, no
-    // USB-bus voltage, no temperature.
+    // No PMU on this board — battery is a bare ADC pin (hwBatteryVoltage),
+    // so there's no charge current or USB-bus voltage to report.
     int vBat = (int)(hwBatteryVoltage() * 1000);
     int pct = (vBat - 3200) / 10;
     if (pct < 0) pct = 0; if (pct > 100) pct = 100;
-    char b[256];
+    char b[320];
     int len = snprintf(b, sizeof(b),
       "{\"ack\":\"status\",\"ok\":true,\"n\":0,\"data\":{"
       "\"name\":\"%s\",\"owner\":\"%s\",\"sec\":%s,"
       "\"bat\":{\"pct\":%d,\"mV\":%d},"
-      "\"sys\":{\"up\":%lu,\"heap\":%u,\"fsFree\":%lu,\"fsTotal\":%lu}"
+      "\"sys\":{\"up\":%lu,\"heap\":%u,\"fsFree\":%lu,\"fsTotal\":%lu},"
+      "\"stats\":{\"appr\":%u,\"deny\":%u,\"vel\":%u,\"nap\":%lu,\"lvl\":%u}"
       "}}\n",
       petName(), ownerName(), bleSecure() ? "true" : "false",
       pct, vBat,
       millis() / 1000, ESP.getFreeHeap(),
       (unsigned long)(LittleFS.totalBytes() - LittleFS.usedBytes()),
-      (unsigned long)LittleFS.totalBytes()
+      (unsigned long)LittleFS.totalBytes(),
+      stats().approvals, stats().denials, statsMedianVelocity(),
+      (unsigned long)stats().napSeconds, stats().level
     );
     Serial.write(b, len);
     bleWrite((const uint8_t*)b, len);
@@ -211,6 +249,8 @@ inline bool xferCommand(JsonDocument& doc) {
   if (strcmp(cmd, "char_end") == 0) {
     _xActive = false;
     bool ok = characterInit(_xCharName);
+    extern bool buddyMode, gifAvailable;
+    if (ok) { buddyMode = false; gifAvailable = true; speciesIdxSave(0xFF); }
     _xAck("char_end", ok);
     return true;
   }

@@ -8,12 +8,16 @@
 __pycache__/
 *.pyc
 
-# Daemon local config / secrets
-daemon/config/
-daemon/*.local.*
+# Personal-use-only local character packs — never committed/pushed. Same
+# reasoning as this project's earlier iteration: some assets (e.g. official
+# Anthropic trademarked art) are fine for private on-device use but not for
+# public redistribution in this repo. tools/prep_character.py writes to
+# characters/<name>/, so anything named *-personal is excluded here.
+characters/*-personal/
 
-# Editor / OS
+# Editor / OS / local tooling
 .vscode/
 .idea/
+.claude/
 .DS_Store
 Thumbs.db

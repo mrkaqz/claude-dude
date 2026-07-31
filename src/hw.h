@@ -2,11 +2,11 @@
 #include <TFT_eSPI.h>
 #include <stdint.h>
 
-// T-Display-S3 board shim. buddy has no HAL — ~50 M5.* call sites scattered
-// through its firmware. This is the board-specific replacement surface for
-// this project: everything that talked to an M5StickCPlus now talks to this
-// instead. See docs/PROTOCOL.md and PLAN.md Phase 2 for the mapping this
-// was built from.
+// T-Display-S3 board shim. buddy has no HAL — ~50 M5.* call sites
+// scattered through its firmware, all originally targeting the M5StickC
+// Plus. This is the board-specific replacement surface for the
+// T-Display-S3: everything that talked to an M5StickC Plus now talks to
+// this instead.
 
 extern TFT_eSPI tft;
 

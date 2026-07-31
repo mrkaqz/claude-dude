@@ -10,6 +10,12 @@ struct Palette {
 bool characterInit(const char* name);
 bool characterLoaded();
 
+// Sets where the non-peek ("home") GIF centers within the sprite. Upstream
+// always centered in the full sprite width because portrait had only one
+// screen region for the pet; the landscape pet column is a sub-region of
+// a wider sprite, so this needs to be explicit. Call once from setup().
+void characterSetHomeArea(int centerX, int centerY);
+
 // 0..6: sleep, idle, busy, attention, celebrate, dizzy, heart.
 // Closes current GIF, opens the one for this state. No-op if same state.
 void characterSetState(uint8_t state);

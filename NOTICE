@@ -1,28 +1,39 @@
-claude-dude is a derivative work based on:
+claude-dude is a hardware port of anthropics/claude-desktop-buddy
+(https://github.com/anthropics/claude-desktop-buddy), MIT licensed, Copyright 2026
+Anthropic, PBC. See LICENSE for the full text.
 
-  claude-desktop-buddy
-  https://github.com/anthropics/claude-desktop-buddy
-  Copyright 2026 Anthropic, PBC. — MIT License
+## What changed from upstream
 
-The BLE bridge (`src/ble_bridge.*`), the Nordic UART wire protocol used to talk to the
-Claude Desktop "Hardware Buddy" developer-mode feature, the AnimatedGIF-based character
-rendering path, and the `tools/prep_character.py` art pipeline originate from that project
-and retain its MIT license and copyright notice (see LICENSE).
+Upstream targets the M5StickC Plus (ESP32, 135x240 portrait ST7789 over SPI, physical
+buttons, IMU, AXP192 power management). This fork targets the LilyGO T-Display-S3
+(ESP32-S3, 320x170 landscape ST7789 over 8-bit parallel, no buttons reachable in the
+3D-printed enclosure, no IMU, no PMU):
 
-Everything else in this repository — the T-Display-S3 board shim, the landscape UI, the
-screen state machine, the usage daemon, and the pixel art — is new code written for this
-project.
+- `src/hw.h` / `src/hw.cpp` — new. A hardware abstraction shim upstream never needed,
+  replacing ~50 M5StickC-specific API call sites (display init, backlight, battery ADC,
+  power-off) with T-Display-S3 equivalents.
+- `src/ble_bridge.cpp` — ported from Bluedroid to NimBLE-backed BLE APIs (a newer
+  Arduino-ESP32 core is required on this board to fix a BLE Secure Connections pairing bug;
+  that core's bundled BLE library changed the underlying stack). The **wire protocol is
+  unchanged** — see REFERENCE.md, which is otherwise untouched from upstream.
+- Landscape layout (320x170) replacing the original's portrait layout (135x240): pet on the
+  left, stats stacked on the right.
+- Button-driven UI (screen cycling, menu, approve/deny) is not reachable on this hardware.
+  Screen selection follows the persona state machine automatically; the `dizzy` and `heart`
+  states, originally IMU-triggered, are reachable via an additive `cmd:"persona"` BLE
+  command (documented in `docs/PROTOCOL.md`, not part of upstream's REFERENCE.md).
+  Everything else in the button-driven menu/settings system was removed as unreachable.
+- The IMU-driven `sleep` trigger (face-down detection) is replaced by an idle-heartbeat
+  timeout, since this board has no IMU.
 
----
+Kept unchanged from upstream: the 7-state persona system and its rendering logic
+(`buddy.cpp`, `buddy_common.h`, all 18 species in `buddies/`), `character.cpp`'s GIF
+rendering path, `stats.h`'s token/level/mood tracking, and the BLE wire protocol itself
+(`REFERENCE.md`).
 
-Inspiration, not code: this project's idle/usage screen is inspired by the *idea* of
-Clawdmeter (https://github.com/HermannBjorgvin/Clawdmeter) — a menu-bar app that shows
-Claude usage and quota reset countdowns. Clawdmeter ships with no LICENSE file, which makes
-it all-rights-reserved by default, so no source from that project was read, copied, or
-consulted while writing `daemon/`. The daemon's method for computing usage (polling
-`api.anthropic.com/v1/messages` and reading the `anthropic-ratelimit-unified-*` response
-headers) was derived independently from Anthropic's own API behavior, not from Clawdmeter's
-implementation.
+## Third-party art
 
-No artwork, pixel art, or "Clawd" character assets from Clawdmeter are used anywhere in this
-repository. The sprites in `art/` are original.
+The GIF assets in `characters/bufo/` are from the community "bufo" emoji set
+(https://bufo.zone), redistributed for convenience as part of upstream's example content.
+They are not covered by the MIT license above; all rights remain with their original
+creators. See `characters/bufo/README.md`.

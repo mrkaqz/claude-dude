@@ -6,13 +6,14 @@
 #include <BLE2902.h>
 #include <Arduino.h>
 #include <string.h>
-// PLAN.md's Phase 1 file layout says this file is kept "verbatim, UNCHANGED"
-// from claude-desktop-buddy — that held until the BLE pairing fix pulled in
-// a newer Arduino-ESP32 core (see PLATFORM comment in platformio.ini) whose
-// bundled BLEDevice/BLEServer/BLESecurity classes now wrap NimBLE instead of
-// Bluedroid. Same class names, but callback signatures, getValue()'s return
-// type, and bond storage are all different underneath, so this file is a
-// straight port to that new surface — not a redesign.
+// This file is otherwise a straight, unmodified copy of upstream's
+// Nordic UART bridge — the wire protocol it implements is untouched (see
+// REFERENCE.md and NOTICE). The port below exists only because the
+// Arduino-ESP32 core this board needs (for an unrelated BLE Secure
+// Connections pairing bug — see platformio.ini) bundles NimBLE-backed
+// BLEDevice/BLEServer/BLESecurity classes instead of Bluedroid's, under
+// the same class names but different callback signatures and bond
+// storage. Behavior is identical; only the API surface underneath moved.
 #include <host/ble_store.h>   // ble_store_util_delete_all() — bond wipe
 
 // Nordic UART Service UUIDs — every BLE serial example uses these, so
@@ -34,7 +35,6 @@ static BLEServer*         server = nullptr;
 static BLECharacteristic* txChar = nullptr;
 static BLECharacteristic* rxChar = nullptr;
 static volatile bool      connected = false;
-static volatile int       connectionCount = 0;   // supports two concurrent centrals: Desktop + daemon
 static volatile bool      secure = false;
 static volatile uint32_t  passkey = 0;
 static volatile uint16_t  mtu = 23;
@@ -55,17 +55,17 @@ class RxCallbacks : public BLECharacteristicCallbacks {
   }
 };
 
+static volatile int connectionCount = 0;   // supports two concurrent centrals
+
 class ServerCallbacks : public BLEServerCallbacks {
   void onConnect(BLEServer* s) override {
     connectionCount++;
     connected = true;
     Serial.printf("[ble] connected (n=%d)\n", connectionCount);
-    // Keep advertising so a second central (the usage daemon, alongside
-    // Claude Desktop) can also find and connect to us — CONFIG_BT_NIMBLE_
-    // MAX_CONNECTIONS is 3, plenty of headroom for our two. A peripheral
-    // stops advertising on its own once any one central connects, so this
-    // has to be requested again explicitly on every connect, not just
-    // after a disconnect.
+    // A peripheral stops advertising once any one central connects — ask
+    // again on every connect (not just disconnect) so a second central can
+    // still find and connect to us. NimBLE supports up to 3 connections
+    // (CONFIG_BT_NIMBLE_MAX_CONNECTIONS).
     BLEDevice::startAdvertising();
   }
   void onDisconnect(BLEServer* s) override {

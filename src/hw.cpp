@@ -18,11 +18,11 @@ void hwInit() {
   delay(10);
 
   tft.init();
-  tft.setRotation(1);   // 320x170 landscape, USB-side conventions per PLAN.md
+  tft.setRotation(1);   // 320x170 landscape
   tft.fillScreen(TFT_BLACK);
 
-  // Pin-based LEDC API (this core's ledcAttach/ledcWrite take a pin, not a
-  // channel — the older channel-based ledcSetup/ledcAttachPin is gone).
+  // Pin-based LEDC API — this core's ledcAttach/ledcWrite take a pin, not
+  // a channel (the older channel-based ledcSetup/ledcAttachPin is gone).
   ledcAttach(PIN_BL, BL_FREQ_HZ, BL_RES_BITS);
   hwSetBacklight(100);
 }
@@ -34,7 +34,7 @@ void hwSetBacklight(uint8_t pct) {
 }
 
 float hwBatteryVoltage() {
-  // 2:1 divider on GPIO4 — see PLAN.md hardware table.
+  // 2:1 divider on GPIO4.
   return analogReadMilliVolts(PIN_BAT_VOLT) * 2.0f / 1000.0f;
 }
 
